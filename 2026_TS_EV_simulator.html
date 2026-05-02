@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EV 전환 비용 시뮬레이터 — TS부서 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #080e14;
+    --surface:  #0f1923;
+    --card:     #141f2e;
+    --border:   #1e2f42;
+    --accent:   #00c9a7;
+    --accent2:  #0ea5e9;
+    --gold:     #f59e0b;
+    --red:      #ef4444;
+    --text:     #e2e8f0;
+    --muted:    #64748b;
+    --white:    #ffffff;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* ── Background grid ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,201,167,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,201,167,.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ── */
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    margin-bottom: 48px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-badge {
+    background: var(--accent);
+    color: #000;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    display: inline-block;
+  }
+
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(36px, 5vw, 58px);
+    letter-spacing: 2px;
+    line-height: 1;
+    color: var(--white);
+  }
+
+  header h1 span { color: var(--accent); }
+
+  .header-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .header-meta {
+    margin-left: auto;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .dept-badge {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.8;
+  }
+
+  .dept-badge strong { color: var(--accent2); }
+
+  /* ── Main grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: flex-start; }
+    .header-meta { margin-left: 0; text-align: left; }
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+
+  .card.gold::before { background: linear-gradient(90deg, var(--gold), transparent); }
+  .card.blue::before { background: linear-gradient(90deg, var(--accent2), transparent); }
+  .card.red-top::before { background: linear-gradient(90deg, var(--red), transparent); }
+
+  .card:hover { border-color: rgba(0,201,167,.3); }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 22px;
+    font-family: 'JetBrains Mono', monospace;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .card.gold .card-title .dot { background: var(--gold); }
+  .card.blue .card-title .dot { background: var(--accent2); }
+
+  /* ── Slider inputs ── */
+  .field {
+    margin-bottom: 20px;
+  }
+
+  .field-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .field-label {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .field-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 600;
+    background: rgba(0,201,167,.08);
+    padding: 2px 10px;
+    border-radius: 6px;
+    min-width: 110px;
+    text-align: right;
+  }
+
+  .field-value.gold-val { color: var(--gold); background: rgba(245,158,11,.08); }
+  .field-value.blue-val { color: var(--accent2); background: rgba(14,165,233,.08); }
+
+  input[type=range] {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    outline: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 3px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--accent);
+    cursor: pointer;
+    transition: transform .15s;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type=range].gold::-webkit-slider-thumb { background: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+  input[type=range].blue::-webkit-slider-thumb { background: var(--accent2); box-shadow: 0 0 0 1px var(--accent2); }
+
+  .track-wrapper {
+    position: relative;
+    padding: 6px 0 2px;
+  }
+
+  .range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Calc button ── */
+  .calc-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: #000;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 3px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all .2s;
+    margin-top: 4px;
+  }
+
+  .calc-btn:hover {
+    background: #00e8c0;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,201,167,.35);
+  }
+
+  .calc-btn:active { transform: translateY(0); }
+
+  /* ── Results ── */
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 600px) {
+    .results-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: all .3s;
+  }
+
+  .result-card.highlight {
+    border-color: var(--accent);
+    background: rgba(0,201,167,.06);
+  }
+
+  .result-card.highlight::after {
+    content: '✦ 절감액';
+    position: absolute;
+    top: 8px; right: 10px;
+    font-size: 9px;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  .result-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 10px;
+  }
+
+  .result-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(22px, 3.5vw, 32px);
+    line-height: 1;
+    color: var(--white);
+    transition: all .4s;
+  }
+
+  .result-value.green { color: var(--accent); }
+  .result-value.red-v { color: var(--red); }
+  .result-value.gold-v { color: var(--gold); }
+  .result-value.blue-v { color: var(--accent2); }
+
+  .result-unit {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── 5년 프로젝션 ── */
+  .projection-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .projection-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), var(--accent), transparent);
+  }
+
+  .proj-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--white);
+    margin-bottom: 6px;
+  }
+
+  .proj-sub {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 24px;
+  }
+
+  /* ── Bar chart ── */
+  .bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    height: 160px;
+    padding: 0 4px;
+  }
+
+  .bar-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .bar-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    text-align: center;
+    white-space: nowrap;
+    transition: all .4s;
+  }
+
+  .bar-amount.negative { color: var(--red); }
+
+  .bar-fill {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    transition: height .6s cubic-bezier(.4,0,.2,1), background .4s;
+    min-height: 4px;
+    position: relative;
+  }
+
+  .bar-fill.pos {
+    background: linear-gradient(180deg, var(--accent), rgba(0,201,167,.4));
+  }
+
+  .bar-fill.neg {
+    background: linear-gradient(180deg, var(--red), rgba(239,68,68,.4));
+    border-radius: 0 0 4px 4px;
+    align-self: flex-start;
+  }
+
+  .bar-year {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* ── Table ── */
+  .proj-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 24px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .proj-table th {
+    padding: 10px 14px;
+    text-align: right;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,.02);
+  }
+
+  .proj-table th:first-child { text-align: left; }
+
+  .proj-table td {
+    padding: 10px 14px;
+    text-align: right;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    transition: all .4s;
+  }
+
+  .proj-table td:first-child { text-align: left; color: var(--text); }
+  .proj-table tr:last-child td { border-bottom: none; font-weight: 600; }
+  .proj-table .pos-val { color: var(--accent); }
+  .proj-table .neg-val { color: var(--red); }
+  .proj-table .gold-val { color: var(--gold); }
+
+  .proj-table tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* ── Footer note ── */
+  .note {
+    background: rgba(14,165,233,.06);
+    border: 1px solid rgba(14,165,233,.15);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.8;
+  }
+
+  .note strong { color: var(--accent2); }
+
+  /* ── Animate number ── */
+  @keyframes pulse-glow {
+    0%   { text-shadow: 0 0 0px var(--accent); }
+    50%  { text-shadow: 0 0 18px var(--accent); }
+    100% { text-shadow: 0 0 0px var(--accent); }
+  }
+
+  .glow { animation: pulse-glow .5s ease; }
+
+  /* ── Divider ── */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 8px 0 20px;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div>
+      <div class="header-badge">TS DEPARTMENT · 2026</div>
+      <h1>EV 전환<br><span>비용 시뮬레이터</span></h1>
+      <p class="header-sub">// EV Transition Cost Simulator v1.0</p>
+    </div>
+    <div class="header-meta">
+      <div class="dept-badge">
+        대상 부서 <strong>Technical Service</strong><br>
+        기준 인원 <strong>43 명</strong><br>
+        시행 예정 <strong>2026 Q1</strong>
+      </div>
+    </div>
+  </header>
+
+  <!-- Input grid -->
+  <div class="grid">
+
+    <!-- Card 1: 인원 설정 -->
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>인원 및 전환율 설정</div>
+
+      <div class="field">
+        <div class="field-header">
+          <span class="field-label">총 직원 수</span>
+          <span class="field-value" id="val-emp">43 명</span>
+        </div>
+        <div class="track-wrapper">
+          <input type="range" id="emp" min="10" max="100" value="43" step="1" oninput="update()">
+        </div>
+        <div class="range-labels"><span>10명</span><span>100명</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-header">
+          <span class="field-label">EV 전환율</span>
+          <span class="field-value" id="val-rate">70 %</span>
+        </div>
+        <div class="track-wrapper">
+          <input type="range" id="rate" min="10" max="100" value="70" step="5" oninput="update()">
+        </div>
+        <div class="range-labels"><span>10%</span><span>100%</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-header">
+          <span class="field-label">월 주행거리</span>
+          <span class="field-value" id="val-km">4,000 km</span>
+        </div>
+        <div class="track-wrapper">
+          <input type="range" id="km" min="1000" max="8000" value="4000" step="500" oninput="update()">
+        </div>
+        <div class="range-labels"><span>1,000km</span><span>8,000km</span></div>
+      </div>
+    </div>
+
+    <!-- Card 2: 비용 설정 -->
+    <div class="card gold">
+      <div class="card-title"><span class="dot"></span>비용 기준 설정</div>
+
+      <div class="field">
+        <div class="field-header">
+          <span class="field-label">내연차 1인 월 유류비</span>
+          <span class="field-value gold-val" id="val-ice">362,000 원</span>
+        </div>
+        <div class="track-wrapper">
+          <input type="range" class="gold" id="ice" min="150000" max="700000" value="362000" step="10000" oninput="update()">
+        </div>
+        <div class="range-labels"><span>15만</span><span>70만</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-header">
+          <span class="field-label">EV 충전비 지원 (km당)</span>
+          <span class="field-value gold-val" id="val-ev">80 원/km</span>
+        </div>
+        <div class="track-wrapper">
+          <input type="range" class="gold" id="ev" min="20" max="200" value="80" step="5" oninput="update()">
+        </div>
+        <div class="range-labels"><span>20원</span><span>200원</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-header">
+          <span class="field-label">회사 EV 구매 보조금 (1인)</span>
+          <span class="field-value gold-val" id="val-sub">200 만원</span>
+        </div>
+        <div class="track-wrapper">
+          <input type="range" class="gold" id="sub" min="0" max="400" value="200" step="50" oninput="update()">
+        </div>
+        <div class="range-labels"><span>0만</span><span>400만</span></div>
+      </div>
+
+      <button class="calc-btn" onclick="update()">계산 업데이트 ▶</button>
+    </div>
+  </div>
+
+  <!-- Result KPIs -->
+  <div class="results-grid">
+    <div class="result-card">
+      <div class="result-label">전환 전 월 총비용</div>
+      <div class="result-value red-v" id="res-before">—</div>
+      <div class="result-unit">원 / 월</div>
+    </div>
+    <div class="result-card">
+      <div class="result-label">전환 후 월 총비용</div>
+      <div class="result-value blue-v" id="res-after">—</div>
+      <div class="result-unit">원 / 월</div>
+    </div>
+    <div class="result-card highlight">
+      <div class="result-label">월 절감액</div>
+      <div class="result-value green" id="res-save">—</div>
+      <div class="result-unit">원 / 월</div>
+    </div>
+    <div class="result-card">
+      <div class="result-label">연간 절감액</div>
+      <div class="result-value green" id="res-year">—</div>
+      <div class="result-unit">원 / 년</div>
+    </div>
+    <div class="result-card">
+      <div class="result-label">초기 투자비</div>
+      <div class="result-value gold-v" id="res-invest">—</div>
+      <div class="result-unit">원 (1회)</div>
+    </div>
+    <div class="result-card">
+      <div class="result-label">ROI 회수 기간</div>
+      <div class="result-value gold-v" id="res-roi">—</div>
+      <div class="result-unit">개월</div>
+    </div>
+  </div>
+
+  <!-- 5년 프로젝션 -->
+  <div class="projection-card">
+    <div class="proj-title">5년 누적 절감 프로젝션</div>
+    <div class="proj-sub">// 초기 투자비 차감 후 순절감액 기준 · 단위: 만원</div>
+
+    <!-- Bar chart -->
+    <div class="bar-chart" id="bar-chart"></div>
+
+    <div class="divider"></div>
+
+    <!-- Table -->
+    <table class="proj-table">
+      <thead>
+        <tr>
+          <th>항목</th>
+          <th>2026</th>
+          <th>2027</th>
+          <th>2028</th>
+          <th>2029</th>
+          <th>2030</th>
+          <th>5년 합계</th>
+        </tr>
+      </thead>
+      <tbody id="proj-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- Note -->
+  <div class="note">
+    <strong>📌 가정 안내</strong><br>
+    • 전환 후 비용 = EV 직원수 × 월주행거리 × km당지원금 + 내연차 직원수 × 1인유류비<br>
+    • 초기 투자비 = 구매보조금 × EV 전환 인원 (자택충전기·충전기 설치비 별도)<br>
+    • 정부 보조금(평균 400~700만원)은 별도 — 직원 개인 수령<br>
+    • 5년 프로젝션은 유가·전기료 변동 미반영 기준
+  </div>
+
+</div>
+
+<script>
+function fmt(n) { return Math.round(n).toLocaleString('ko-KR'); }
+function fmtM(n) { return (n / 10000).toFixed(0); }
+
+function update() {
+  const emp  = +document.getElementById('emp').value;
+  const rate = +document.getElementById('rate').value / 100;
+  const km   = +document.getElementById('km').value;
+  const ice  = +document.getElementById('ice').value;
+  const ev   = +document.getElementById('ev').value;
+  const sub  = +document.getElementById('sub').value * 10000;
+
+  // Update display values
+  document.getElementById('val-emp').textContent  = emp + ' 명';
+  document.getElementById('val-rate').textContent = (+document.getElementById('rate').value) + ' %';
+  document.getElementById('val-km').textContent   = km.toLocaleString() + ' km';
+  document.getElementById('val-ice').textContent  = fmt(ice) + ' 원';
+  document.getElementById('val-ev').textContent   = ev + ' 원/km';
+  document.getElementById('val-sub').textContent  = (+document.getElementById('sub').value) + ' 만원';
+
+  const ev_emp  = Math.round(emp * rate);
+  const ice_emp = emp - ev_emp;
+
+  const ev_monthly  = ev_emp * km * ev;
+  const ice_monthly = ice_emp * ice;
+  const after_total = ev_monthly + ice_monthly;
+  const before_total = emp * ice;
+  const save_month  = before_total - after_total;
+  const save_year   = save_month * 12;
+  const invest      = sub * ev_emp;
+  const roi         = save_month > 0 ? (invest / save_month) : Infinity;
+
+  // Set KPIs
+  setVal('res-before', fmt(before_total), '');
+  setVal('res-after',  fmt(after_total),  '');
+  setVal('res-save',   fmt(save_month),   '');
+  setVal('res-year',   fmt(save_year),    '');
+  setVal('res-invest', fmt(invest),       '');
+  setVal('res-roi',    roi === Infinity ? '∞' : roi.toFixed(1), '');
+
+  // 5-year projection
+  const proj = [];
+  let cumulative = 0;
+  for (let y = 0; y < 5; y++) {
+    const yr_invest = y === 0 ? invest : 0;
+    const net = save_year - yr_invest;
+    cumulative += net;
+    proj.push({ year: 2026 + y, net, cumulative });
+  }
+
+  renderChart(proj);
+  renderTable(proj, before_total, after_total, invest);
+}
+
+function setVal(id, val, suffix) {
+  const el = document.getElementById(id);
+  el.textContent = val + suffix;
+  el.classList.remove('glow');
+  void el.offsetWidth;
+  el.classList.add('glow');
+}
+
+function renderChart(proj) {
+  const maxAbs = Math.max(...proj.map(p => Math.abs(p.cumulative)), 1);
+  const chart = document.getElementById('bar-chart');
+  chart.innerHTML = '';
+  const CHART_H = 140;
+
+  proj.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'bar-group';
+
+    const amountEl = document.createElement('div');
+    const valM = Math.round(p.cumulative / 10000);
+    amountEl.className = 'bar-amount' + (p.cumulative < 0 ? ' negative' : '');
+    amountEl.textContent = (p.cumulative >= 0 ? '+' : '') + valM.toLocaleString() + '만';
+
+    const bar = document.createElement('div');
+    const ratio = Math.abs(p.cumulative) / maxAbs;
+    const h = Math.max(4, Math.round(ratio * CHART_H));
+    bar.className = 'bar-fill ' + (p.cumulative >= 0 ? 'pos' : 'neg');
+    bar.style.height = h + 'px';
+
+    const yearEl = document.createElement('div');
+    yearEl.className = 'bar-year';
+    yearEl.textContent = p.year;
+
+    div.appendChild(amountEl);
+    div.appendChild(bar);
+    div.appendChild(yearEl);
+    chart.appendChild(div);
+  });
+}
+
+function renderTable(proj, before, after, invest) {
+  const tbody = document.getElementById('proj-tbody');
+  const saveYear = (before - after) * 12;
+  let totalNet = 0;
+  proj.forEach(p => totalNet += p.net);
+
+  const rows = [
+    {
+      label: '유류비 유지시 (연)',
+      vals: proj.map(() => before * 12),
+      cls: 'neg-val',
+      total: before * 12 * 5,
+    },
+    {
+      label: '충전비 지원 (연)',
+      vals: proj.map(() => after * 12),
+      cls: 'pos-val',
+      total: after * 12 * 5,
+    },
+    {
+      label: '초기 투자비',
+      vals: proj.map((p, i) => i === 0 ? invest : 0),
+      cls: 'gold-val',
+      total: invest,
+    },
+    {
+      label: '연간 순절감액',
+      vals: proj.map(p => p.net),
+      cls: v => v >= 0 ? 'pos-val' : 'neg-val',
+      total: totalNet,
+      bold: true,
+    },
+    {
+      label: '누적 순절감액',
+      vals: proj.map(p => p.cumulative),
+      cls: v => v >= 0 ? 'pos-val' : 'neg-val',
+      total: proj[proj.length - 1].cumulative,
+      bold: true,
+    },
+  ];
+
+  tbody.innerHTML = '';
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    const td0 = document.createElement('td');
+    td0.textContent = row.label;
+    if (row.bold) td0.style.fontWeight = '700';
+    tr.appendChild(td0);
+
+    row.vals.forEach(v => {
+      const td = document.createElement('td');
+      const cls = typeof row.cls === 'function' ? row.cls(v) : row.cls;
+      td.className = cls;
+      td.textContent = (v !== 0 ? fmt(v) : '-') + (v !== 0 ? '원' : '');
+      if (row.bold) td.style.fontWeight = '700';
+      tr.appendChild(td);
+    });
+
+    const tdTotal = document.createElement('td');
+    const totalCls = typeof row.cls === 'function' ? row.cls(row.total) : row.cls;
+    tdTotal.className = totalCls;
+    tdTotal.textContent = fmt(row.total) + '원';
+    tdTotal.style.fontWeight = '700';
+    tr.appendChild(tdTotal);
+
+    tbody.appendChild(tr);
+  });
+}
+
+// Init
+update();
+</script>
+</body>
+</html>
