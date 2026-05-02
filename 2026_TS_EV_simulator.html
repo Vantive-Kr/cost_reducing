@@ -406,6 +406,21 @@
   .proj-table .neg-val { color: var(--v-danger); font-weight: 700; }
   .proj-table .amber-val { color: var(--v-amber); }
 
+  /* ── ROI SUMMARY ── */
+  .roi-summary {
+    margin-top: 14px;
+    padding: 14px 18px;
+    background: rgba(196,112,15,0.06);
+    border: 1px solid rgba(196,112,15,0.18);
+    border-left: 3px solid var(--v-amber);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.75;
+  }
+  .roi-summary em { font-style: italic; }
+  .roi-summary span { color: var(--v-amber); font-weight: 700; }
+
   /* ── NOTICE CARD ── */
   .notice-card {
     background: var(--v-pine-bg); border: 1px solid rgba(16,87,66,0.18);
@@ -662,6 +677,9 @@
         <div class="kpi-label">ROI 회수 기간 (개월)</div>
       </div>
     </div>
+    <p class="roi-summary" id="roi-summary">
+      <em>초기 투자비 <span id="roi-invest-txt">—</span>원은 월 절감액 <span id="roi-save-txt">—</span>원 기준으로 약 <span id="roi-months-txt">—</span>개월 내 회수되며, 이후 연간 <span id="roi-year-txt">—</span>원의 순절감이 지속됩니다.</em>
+    </p>
   </section>
 
   <!-- PROJECTION SECTION -->
@@ -770,6 +788,12 @@ function update() {
   setVal("res-year",   fmt(save_year));
   setVal("res-invest", fmt(invest));
   setVal("res-roi",    roi === Infinity ? "∞" : roi.toFixed(1));
+
+  // ROI summary
+  document.getElementById("roi-invest-txt").textContent = fmt(invest);
+  document.getElementById("roi-save-txt").textContent   = fmt(save_month);
+  document.getElementById("roi-months-txt").textContent = roi === Infinity ? "∞" : roi.toFixed(1);
+  document.getElementById("roi-year-txt").textContent   = fmt(save_year);
 
   const proj = [];
   let cum = 0;
